@@ -1,7 +1,7 @@
 # Build image
 FROM swift:4.1 as builder
 RUN apt-get -qq update && apt-get -q -y install \
-  libmysqlclient-dev \
+  tzdata \
   && rm -r /var/lib/apt/lists/*
 WORKDIR /app
 COPY . .
@@ -13,7 +13,6 @@ FROM ubuntu:16.04
 RUN apt-get -qq update && apt-get install -y \
   libicu55 libxml2 libbsd0 libcurl3 libatomic1 \
   tzdata \
-  libmysqlclient20 \
   && rm -r /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /build/bin/Run .
