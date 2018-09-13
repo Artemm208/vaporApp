@@ -20,7 +20,8 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     var databases = DatabasesConfig()
     // Configure a MySQL database
     let databaseConfig = MySQLDatabaseConfig(
-        hostname: "db",
+//        hostname: "db",
+        hostname: "localhost",
         username: "root",
         password: "password",
         database: "test")
@@ -29,7 +30,8 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     services.register(databases)
 
     /// Configure migrations
-     var migrations = MigrationConfig()
-     migrations.add(model: Acronym.self, database: .mysql)
-     services.register(migrations)
+    var migrations = MigrationConfig()
+    migrations.add(model: User.self, database: .mysql)
+    migrations.add(model: Acronym.self, database: .mysql)
+    services.register(migrations)
 }

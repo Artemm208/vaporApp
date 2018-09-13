@@ -17,5 +17,7 @@ services:
       MYSQL_USER: test
       MYSQL_PASSWORD: password
       MYSQL_DATABASE: test
+    volumes:
+      - /var/lib/:/var/lib/mysql
   redis:
     image: redis:alpine
