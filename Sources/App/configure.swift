@@ -20,8 +20,8 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     var databases = DatabasesConfig()
     // Configure a MySQL database
     let databaseConfig = MySQLDatabaseConfig(
-//        hostname: "db",
-        hostname: "localhost",
+        hostname: "db",
+//        hostname: "localhost",
         username: "root",
         password: "password",
         database: "test")
