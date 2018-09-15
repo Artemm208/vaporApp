@@ -28,5 +28,7 @@ services:
       MYSQL_USER: test
       MYSQL_PASSWORD: password
       MYSQL_DATABASE: test
+    volumes:
+      - /Users/sergeyborovikov/Documents/vaporapp_db_data:/var/lib/mysql
   redis:
     image: redis:alpine

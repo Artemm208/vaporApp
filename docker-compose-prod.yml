@@ -17,5 +17,7 @@ services:
       MYSQL_USER: test
       MYSQL_PASSWORD: password
       MYSQL_DATABASE: test
+    volumes:
+      - /var/lib/docker/volumes/lexikon_db_data:/var/lib/mysql
   redis:
     image: redis:alpine
