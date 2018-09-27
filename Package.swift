@@ -11,6 +11,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "App", dependencies: ["FluentMySQL", "Vapor"]),
-        .target(name: "Run", dependencies: ["App"])
+        .target(name: "Run", dependencies: ["App"]),
+        .testTarget(name: "AppTests", dependencies: ["App"])
     ]
 )
