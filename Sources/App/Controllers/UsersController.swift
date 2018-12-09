@@ -7,6 +7,7 @@
 
 import Vapor
 import Fluent
+import Crypto
 
 class UsersController: RouteCollection {
     
@@ -19,6 +20,7 @@ class UsersController: RouteCollection {
     }
     
     func createHandler(_ req: Request, user: User) throws -> Future<User> {
+        user.password = try BCrypt.hash(user.password)
         return user.save(on: req)
     }
     
