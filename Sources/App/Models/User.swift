@@ -76,22 +76,3 @@ extension Future where T: User {
 extension User: TokenAuthenticatable {
     typealias TokenType = Token
 }
-
-
-// Add password field to User model
-struct UserPassword: MySQLUUIDModel { var id: UUID? }
-
-extension UserPassword: MySQLMigration {
-    
-    static func prepare(on conn: MySQLConnection) -> Future<Void> {
-        return Database.update(User.self, on: conn) { builder in
-            builder.field(for: \.password)
-        }
-    }
-    
-    static func revert(on conn: MySQLConnection) -> Future<Void> {
-        return Database.update(User.self, on: conn) { builder in
-            builder.deleteField(for: \.password)
-        }
-    }
-}
