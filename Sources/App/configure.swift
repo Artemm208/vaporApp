@@ -54,6 +54,7 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     migrations.add(model: Acronym.self, database: .mysql)
     migrations.add(model: Category.self, database: .mysql)
     migrations.add(model: AcronymCategoryPivot.self, database: .mysql)
+    migrations.add(migration: AdminUser.self, database: .mysql)
     services.register(migrations)
     
     //register fluent commands
