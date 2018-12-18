@@ -13,7 +13,7 @@ class UsersController: RouteCollection {
     
     func boot(router: Router) throws {
         
-        let  usersRoute = router.grouped("api", "users")
+        let usersRoute = router.grouped("api", "users")
         let tokenAuthMiddleware = User.tokenAuthMiddleware()
         let guardAuthMiddleware = User.guardAuthMiddleware()
         let tokenAuthGroup = usersRoute.grouped(
@@ -42,8 +42,10 @@ class UsersController: RouteCollection {
     
     func getAllHandler(_ req: Request) throws -> Future<[User.Public]> {
         return User.query(on: req)
-            .decode(User.Public.self)
-            .all()
+            .decode(User.self)
+            .all().map { users -> [User.Public] in
+                return users.map { $0.convertToPublic() }
+        }
     }
     
     func getHandler(_ req: Request) throws -> Future<User.Public> {

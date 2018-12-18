@@ -9,7 +9,10 @@ final class User: Codable {
     var username: String
     var password: String
     
-    init(name: String, username: String, password: String) {
+    init(name: String,
+         username: String,
+         password: String) {
+        
         self.name = name
         self.username = username
         self.password = password
@@ -20,7 +23,10 @@ final class User: Codable {
         var name: String
         var username: String
         
-        init(id: UUID?, name: String, username: String) {
+        init(id: UUID?,
+             name: String,
+             username: String) {
+            
             self.id = id
             self.name = name
             self.username = username
@@ -29,11 +35,10 @@ final class User: Codable {
 }
 
 extension User.Public: MySQLUUIDModel {}
-extension User.Public: Content {}
-
 extension User: MySQLUUIDModel {}
-extension User: Content {}
 extension User: Parameter {}
+extension User: Content {}
+extension User.Public: Content {}
 extension User {
     var acronyms: Children<User, Acronym> {
         return children(\.userID)

@@ -64,7 +64,9 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
 }
 
 fileprivate func host(env: Environment) -> String {
-    return isLinuxEnvironment(env: env) ? "db" : "localhost"
+//    return isLinuxEnvironment(env: env) ? "db" : "localhost"
+//    return "db"
+    return "localhost"
 }
 
 fileprivate func isLinuxEnvironment(env: Environment) -> Bool {

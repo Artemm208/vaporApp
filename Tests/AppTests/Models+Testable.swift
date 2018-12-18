@@ -7,6 +7,7 @@
 
 @testable import App
 import FluentMySQL
+import Crypto
 
 extension User {
     static func create(
@@ -14,7 +15,13 @@ extension User {
         username: String = "lukes",
         on connection: MySQLConnection
         ) throws -> User {
-        let user = User(name: name, username: username)
+        
+        let password = try BCrypt.hash("password")
+        let user = User(
+            name: name,
+            username: username,
+            password: password
+        )
         return try user.save(on: connection).wait()
     }
 }

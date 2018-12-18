@@ -5,8 +5,9 @@
 //  Created by Sergey Borovikov on 9/22/18.
 //
 
+@testable import App
+import Authentication
 import Vapor
-import App
 import FluentMySQL
 
 extension Application {
@@ -42,8 +43,40 @@ extension Application {
         to path: String,
         method: HTTPMethod,
         headers: HTTPHeaders = .init(),
-        body: T? = nil
+        body: T? = nil,
+        loggedInRequest: Bool = false,
+        loggedInUser: User? = nil
         ) throws -> Response where T: Content {
+        
+        var headers = headers
+        
+        if (loggedInRequest || loggedInUser != nil) {
+            let username: String
+            
+            if let user = loggedInUser {
+                username = user.username
+            } else {
+                username = "admin"
+            }
+            
+            let credentials = BasicAuthorization(
+                username: username,
+                password: "password")
+            
+            var tokenHeaders = HTTPHeaders()
+            tokenHeaders.basicAuthorization = credentials
+            
+            let tokenResponse = try self.sendRequest(
+                to: "/api/users/login",
+                method: .POST,
+                headers: tokenHeaders)
+            
+            let token = try tokenResponse.content.syncDecode(Token.self)
+            
+            headers.add(name: .authorization,
+                        value: "Bearer \(token.token)")
+        }
+        
         let responder = try self.make(Responder.self)
         let request = HTTPRequest(
             method: method,
@@ -61,7 +94,9 @@ extension Application {
     func sendRequest(
         to path: String,
         method: HTTPMethod,
-        headers: HTTPHeaders = .init()
+        headers: HTTPHeaders = .init(),
+        loggedInRequest: Bool = false,
+        loggedInUser: User? = nil
         ) throws -> Response {
         
         let emptyContent: EmptyContent? = nil
@@ -70,7 +105,9 @@ extension Application {
             to: path,
             method: method,
             headers: headers,
-            body: emptyContent)
+            body: emptyContent,
+            loggedInRequest: loggedInRequest,
+            loggedInUser: loggedInUser)
     }
     
     
@@ -78,14 +115,18 @@ extension Application {
         to path: String,
         method: HTTPMethod,
         headers: HTTPHeaders,
-        data: T
+        data: T,
+        loggedInRequest: Bool = false,
+        loggedInUser: User? = nil
         ) throws where T: Content {
         
         _ = try self.sendRequest(
             to: path,
             method: method,
             headers: headers,
-            body: data)
+            body: data,
+            loggedInRequest: loggedInRequest,
+            loggedInUser: loggedInUser)
     }
     
     func getResponse<C, T>(
@@ -93,13 +134,17 @@ extension Application {
         method: HTTPMethod = .GET,
         headers: HTTPHeaders = .init(),
         data: C? = nil,
-        decodeTo type: T.Type
+        decodeTo type: T.Type,
+        loggedInRequest: Bool = false,
+        loggedInUser: User? = nil
         ) throws -> T where C: Content, T: Decodable {
         let response = try self.sendRequest(
             to: path,
             method: method,
             headers: headers,
-            body: data)
+            body: data,
+            loggedInRequest: loggedInRequest,
+            loggedInUser: loggedInUser)
         return try response.content.decode(type).wait()
     }
     
@@ -107,7 +152,9 @@ extension Application {
         to path: String,
         method: HTTPMethod = .GET,
         headers: HTTPHeaders = .init(),
-        decodeTo type: T.Type
+        decodeTo type: T.Type,
+        loggedInRequest: Bool = false,
+        loggedInUser: User? = nil
         ) throws -> T where T: Decodable {
         let emptyContent: EmptyContent? = nil
         return try self.getResponse(
@@ -115,6 +162,8 @@ extension Application {
             method: method,
             headers: headers,
             data: emptyContent,
-            decodeTo: type)
+            decodeTo: type,
+            loggedInRequest: loggedInRequest,
+            loggedInUser: loggedInUser)
     }
 }
