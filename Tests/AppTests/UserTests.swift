@@ -31,8 +31,7 @@ final class UserTests: XCTestCase {
         
         let users = try app.getResponse(
             to: usersURI,
-            decodeTo: [User.Public].self,
-            loggedInRequest: true)
+            decodeTo: [User.Public].self)
         
         XCTAssertEqual(users.count, 3)
         XCTAssertEqual(users[0].name, usersName)

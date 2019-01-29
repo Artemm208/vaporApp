@@ -49,12 +49,12 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     
     /// Configure migrations
     var migrations = MigrationConfig()
-    migrations.add(model: Token.self, database: .mysql)
     migrations.add(model: User.self, database: .mysql)
     migrations.add(model: Acronym.self, database: .mysql)
     migrations.add(model: Category.self, database: .mysql)
     migrations.add(model: AcronymCategoryPivot.self, database: .mysql)
     migrations.add(migration: AdminUser.self, database: .mysql)
+    migrations.add(model: Token.self, database: .mysql)
     services.register(migrations)
     
     //register fluent commands
@@ -64,7 +64,7 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
 }
 
 fileprivate func host(env: Environment) -> String {
-//    return isLinuxEnvironment(env: env) ? "db" : "localhost"
+//   return isLinuxEnvironment(env: env) ? "db" : "localhost"
 //    return "db"
     return "localhost"
 }

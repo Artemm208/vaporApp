@@ -10,7 +10,7 @@ import Vapor
 import FluentMySQL
 import Authentication
 
-final class Token: Codable {
+final class Token: Content {
     var id: UUID?
     var token: String
     var userID: User.ID
@@ -22,8 +22,14 @@ final class Token: Codable {
 }
 
 extension Token: MySQLUUIDModel {}
-extension Token: Migration {}
-extension Token: Content {}
+extension Token: MySQLMigration {
+    static func prepare(on connection: MySQLConnection) -> Future<Void> {
+        return Database.create(self, on: connection) { builder in
+            try addProperties(to: builder)
+            builder.reference(from: \.userID, to: \User.id)
+        }
+    }
+}
 
 extension Token {
     static func generate(for user: User) throws -> Token {
