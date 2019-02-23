@@ -119,7 +119,7 @@ class AcronymsController: RouteCollection {
                            req.parameters.next(Acronym.self),
                            req.parameters.next(Category.self)) {
                             acronym, category in
-                            let pivot = try AcronymCategoryPivot(acronym.requireID(), category.requireID())
+                            let pivot = try AcronymCategoryPivot(acronym, category)
                             return pivot.save(on: req).transform(to: .created)
         }
     }
