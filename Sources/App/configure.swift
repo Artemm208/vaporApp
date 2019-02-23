@@ -1,4 +1,5 @@
 import Vapor
+import Leaf
 import FluentMySQL
 import Authentication
 
@@ -10,6 +11,7 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     
     /// Register providers first
     try services.register(FluentMySQLProvider())
+    try services.register(LeafProvider())
     try services.register(AuthenticationProvider())
     
     /// Register routes to the router
@@ -21,6 +23,7 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     var middlewares = MiddlewareConfig() // Create _empty_ middleware config
     middlewares.use(FileMiddleware.self) // Serves files from `Public/` directory
     middlewares.use(ErrorMiddleware.self) // Catches errors and converts to HTTP response
+    middlewares.use(SessionsMiddleware.self) // It enables sessions for all requests
     services.register(middlewares)
     
     var databases = DatabasesConfig()
@@ -61,6 +64,12 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     var commandConfig = CommandConfig.default()
     commandConfig.useFluentCommands()
     services.register(commandConfig)
+    
+    // This talls your application to use MemoryKeyedCache
+    // when asked for the KeyedCache service
+    config.prefer(MemorySessions.self, for: KeyedCache.self)
+    config.prefer(LeafRenderer.self, for: ViewRenderer.self)
+    config.prefer(MemoryKeyedCache.self, for: KeyedCache.self)
 }
 
 fileprivate func host(env: Environment) -> String {

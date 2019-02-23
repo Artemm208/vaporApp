@@ -105,4 +105,8 @@ struct AdminUser: Migration {
         return .done(on: conn)
     }
 }
+/* Conform User to PasswordAuthenticatable. This allows Vapor to authenticate users with a username and password when they log in. Since you’ve already implemented the necessary properties for PasswordAuthenticatable in BasicAuthenticatable, there’s nothing to do here. */
+extension User: PasswordAuthenticatable {}
 
+/* Conform User to SessionAuthenticatable. This allows the application to save and retrieve your user as part of a session. */
+extension User: SessionAuthenticatable {}
