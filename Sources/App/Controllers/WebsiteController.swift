@@ -300,11 +300,18 @@ struct WebsiteController: RouteCollection {
         }
         
         let password = try BCrypt.hash(data.password)
+        var twitterURL: String?
+        if let twitter = data.twitterURL, !twitter.isEmpty {
+            twitterURL = twitter
+        }
+        
         let user = User(
             name: data.name,
             username: data.username,
             password: password,
-            email: data.emailAddress)
+            email: "",
+            twitterURL: twitterURL)
+        
         return user.save(on: req).map(to: Response.self) { user in
             try req.authenticateSession(user)
             return req.redirect(to: "/")
@@ -581,6 +588,7 @@ struct RegisterData: Content {
     let password: String
     let confirmPassword: String
     let emailAddress: String
+    let twitterURL: String?
 }
 
 extension RegisterData: Validatable, Reflectable {

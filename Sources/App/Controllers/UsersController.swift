@@ -27,6 +27,9 @@ class UsersController: RouteCollection {
         let basicAuthMiddleware = User.basicAuthMiddleware(using: BCryptDigest())
         let basicAuthGroup = usersRoute.grouped(basicAuthMiddleware)
         basicAuthGroup.post("login", use: loginHandler)
+
+//        let usersV2Route = router.grouped("api", "v2", "users")
+//        usersV2Route.get(User.parameter, use: getV2Handler)
     }
     
     func loginHandler(_ req: Request) throws -> Future<Token> {
@@ -52,6 +55,12 @@ class UsersController: RouteCollection {
         return try req.parameters
             .next(User.self)
             .convertToPublic()
+    }
+    
+    func getV2Handler(_ req: Request) throws -> Future<User.PublicV2> {
+            return try req.parameters
+                .next(User.self)
+                .convertToPublicV2()
     }
     
     func getAcronymsHandler(_ req: Request)

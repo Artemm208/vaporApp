@@ -10,18 +10,21 @@ final class User: Codable {
     var password: String
     var email: String
     var profilePicture: String?
+    var twitterURL: String?
     
     init(name: String,
          username: String,
          password: String,
          email: String,
-         profilePicture: String? = nil) {
+         profilePicture: String? = nil,
+         twitterURL: String? = nil) {
         
         self.name = name
         self.username = username
         self.password = password
         self.email = email
         self.profilePicture = profilePicture
+        self.twitterURL = twitterURL
     }
     
     final class Public: Codable {
@@ -38,13 +41,34 @@ final class User: Codable {
             self.username = username
         }
     }
+    
+    final class PublicV2: Codable {
+        var id: UUID?
+        var name: String
+        var username: String
+        var twitterURL: String?
+        
+        init(id: UUID?,
+             name: String,
+             username: String,
+             twitterURL: String? = nil) {
+            
+            self.id = id
+            self.name = name
+            self.username = username
+            self.twitterURL = twitterURL
+        }
+    }
 }
 
 extension User.Public: MySQLUUIDModel {}
+extension User.Public: Content {}
+extension User.PublicV2: MySQLUUIDModel {}
+extension User.PublicV2: Content {}
+
 extension User: MySQLUUIDModel {}
 extension User: Parameter {}
 extension User: Content {}
-extension User.Public: Content {}
 extension User {
     var acronyms: Children<User, Acronym> {
         return children(\.userID)
@@ -56,8 +80,10 @@ extension User: MySQLMigration {
     static func prepare(on connection: MySQLConnection) -> Future<Void> {
         return Database.create(self, on: connection) { builder in
             try addProperties(to: builder)
-            builder.unique(on: \.username)
-            builder.unique(on: \.email)
+            builder.field(for: \.id, isIdentifier: true)
+            builder.field(for: \.name)
+            builder.field(for: \.username)
+            builder.field(for: \.password)
         }
     }
 }
@@ -75,12 +101,26 @@ extension User {
             username: username
         )
     }
+    
+    func convertToPublicV2() -> User.PublicV2 {
+        return User.PublicV2(
+            id: id,
+            name: name,
+            username: username,
+            twitterURL: twitterURL)
+    }
 }
 
 extension Future where T: User {
     func convertToPublic() -> Future<User.Public> {
         return self.map(to: User.Public.self) { user in
             return user.convertToPublic()
+        }
+    }
+    
+    func convertToPublicV2() -> Future<User.PublicV2> {
+        return self.map(to: User.PublicV2.self) { user in
+            return user.convertToPublicV2()
         }
     }
 }
