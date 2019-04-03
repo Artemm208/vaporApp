@@ -8,14 +8,20 @@ final class User: Codable {
     var name: String
     var username: String
     var password: String
+    var email: String
+    var profilePicture: String?
     
     init(name: String,
          username: String,
-         password: String) {
+         password: String,
+         email: String,
+         profilePicture: String? = nil) {
         
         self.name = name
         self.username = username
         self.password = password
+        self.email = email
+        self.profilePicture = profilePicture
     }
     
     final class Public: Codable {
@@ -51,6 +57,7 @@ extension User: MySQLMigration {
         return Database.create(self, on: connection) { builder in
             try addProperties(to: builder)
             builder.unique(on: \.username)
+            builder.unique(on: \.email)
         }
     }
 }
@@ -96,7 +103,8 @@ struct AdminUser: Migration {
         let user = User(
             name: "Admin",
             username: "admin",
-            password: hashedPassword)
+            password: hashedPassword,
+            email: "admin@localhost.local")
         
         return user.save(on: conn).transform(to: ())
     }

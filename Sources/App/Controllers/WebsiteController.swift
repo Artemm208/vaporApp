@@ -30,8 +30,13 @@ import Vapor
 import Leaf
 import Fluent
 import Authentication
+import SendGrid
+import Imperial
 
 struct WebsiteController: RouteCollection {
+    
+    let imageFolder = "ProfilePictures/"
+    
     func boot(router: Router) throws {
         let authSessionRoutes = router.grouped(User.authSessionsMiddleware())
         authSessionRoutes.get(use: indexHandler)
@@ -45,6 +50,11 @@ struct WebsiteController: RouteCollection {
         authSessionRoutes.post("logout", use: logoutHandler)
         authSessionRoutes.get("register", use: registerHandler)
         authSessionRoutes.post(RegisterData.self, at: "register", use: registerPostHandler)
+        authSessionRoutes.get("forgottenPassword", use: forgottenPasswordHandler)
+        authSessionRoutes.post("forgottenPassword", use: forgottenPasswordPostHandler)
+        authSessionRoutes.get("resetPassword", use: resetPasswordHandler)
+        authSessionRoutes.post(ResetPasswordData.self, at: "resetPassword", use: resetPasswordPostHandler)
+        authSessionRoutes.get("users", User.parameter, "profilePicture", use: getUsersProfilePictureHandler)
         
         let protectedRoutes = authSessionRoutes.grouped(RedirectMiddleware<User>(path: "/login"))
         protectedRoutes.get("acronyms", "create", use: createAcronymHandler)
@@ -52,6 +62,8 @@ struct WebsiteController: RouteCollection {
         protectedRoutes.get("acronyms", Acronym.parameter, "edit", use: editAcronymHandler)
         protectedRoutes.post("acronyms", Acronym.parameter, "edit", use: editAcronymPostHandler)
         protectedRoutes.post("acronyms", Acronym.parameter, "delete", use: deleteAcronymHandler)
+        protectedRoutes.get("users", User.parameter, "addProfilePicture", use: addProfilePictureHandler)
+        protectedRoutes.post("users", User.parameter, "addProfilePicture", use: addProfilePicturePostHandler)
     }
     
     func indexHandler(_ req: Request) throws -> Future<View> {
@@ -86,6 +98,7 @@ struct WebsiteController: RouteCollection {
     }
     
     func userHandler(_ req: Request) throws -> Future<View> {
+        let loggedInUser = try req.authenticated(User.self)
         return try req.parameters.next(User.self)
             .flatMap(to: View.self) { user in
                 return try user.acronyms
@@ -94,7 +107,8 @@ struct WebsiteController: RouteCollection {
                     .flatMap(to: View.self) { acronyms in
                         let context = UserContext(title: user.name,
                                                   user: user,
-                                                  acronyms: acronyms)
+                                                  acronyms: acronyms,
+                                                  authenticatedUser: loggedInUser)
                         return try req.view().render("user", context)
                 }
         }
@@ -286,11 +300,199 @@ struct WebsiteController: RouteCollection {
         }
         
         let password = try BCrypt.hash(data.password)
-        let user = User(name: data.name, username: data.username, password: password)
+        let user = User(
+            name: data.name,
+            username: data.username,
+            password: password,
+            email: data.emailAddress)
         return user.save(on: req).map(to: Response.self) { user in
             try req.authenticateSession(user)
             return req.redirect(to: "/")
         }
+    }
+    
+    func forgottenPasswordHandler(_ req: Request) throws -> Future<View> {
+            return try req.view().render(
+                "forgottenPassword",
+                ["title": "Reset Your Password"])
+    }
+    
+    func forgottenPasswordPostHandler(_ req: Request) throws -> Future<View> {
+        
+        let email = try req.content.syncGet(String.self, at: "email")
+        
+        return User.query(on: req)
+            .filter(\.email == email)
+            .first()
+            .flatMap(to: View.self) { user in
+                
+                guard let user = user else {
+                    return try req.view().render(
+                        "forgottenPasswordConfirmed",
+                        ["title": "Password Reset Email Sent"])
+                }
+                
+                let resetTokenString = try CryptoRandom()
+                    .generateData(count: 32)
+                    .base32EncodedString()
+                
+                let resetToken = try ResetPasswordToken(
+                    token: resetTokenString,
+                    userID: user.requireID())
+                
+                return resetToken.save(on: req).flatMap(to: View.self) { _ in
+                    
+                    let emailContent = """
+                    <p>You've requested to reset your password. <a
+                    href="http://localhost:8080/resetPassword?\
+                    token=\(resetTokenString)">
+                    Click here</a> to reset your password.</p>
+                    """
+                    
+                    let emailAddress = EmailAddress(
+                        email: user.email,
+                        name: user.name)
+                    let fromEmail = EmailAddress(
+                        email: "0xtimc@gmail.com",
+                        name: "Vapor TIL")
+                    let emailConfig = Personalization(
+                        to: [emailAddress],
+                        subject: "Reset Your Password")
+                    
+                    let email = SendGridEmail(
+                        personalizations: [emailConfig],
+                        from: fromEmail,
+                        content: [
+                            ["type": "text/html",
+                             "value": emailContent]
+                        ])
+                    
+                    let sendGridClient = try req.make(SendGridClient.self)
+                    return try sendGridClient.send([email], on: req.eventLoop)
+                        .flatMap(to: View.self) { _ in
+                            // 10
+                            return try req.view().render(
+                                "forgottenPasswordConfirmed",
+                                ["title": "Password Reset Email Sent"]
+                            )
+                    }
+                }
+        }
+    }
+    
+    func resetPasswordHandler(_ req: Request) throws -> Future<View> {
+        
+        guard let token = req.query[String.self, at: "token"] else {
+            return try req.view().render(
+                "resetPassword",
+                ResetPasswordContext(error: true)
+            )
+        }
+        
+        return ResetPasswordToken.query(on: req)
+            .filter(\.token == token)
+            .first()
+            .map(to: ResetPasswordToken.self) { token in
+                
+                guard let token = token else {
+                    throw Abort.redirect(to: "/")
+                }
+                return token
+            }.flatMap { token in
+                
+                return token.user.get(on: req).flatMap { user in
+                    try req.session().set("ResetPasswordUser", to: user)
+                    return token.delete(on: req)
+                }
+            }.flatMap {
+                try req.view().render("resetPassword", ResetPasswordContext())
+        }
+    }
+    
+    func resetPasswordPostHandler( _ req: Request, data: ResetPasswordData) throws -> Future<Response> {
+        
+        guard data.password == data.confirmPassword else {
+            return try req.view().render(
+                "resetPassword",
+                ResetPasswordContext(error: true)).encode(for: req)
+        }
+        
+        let resetPasswordUser = try req.session().get("ResetPasswordUser", as: User.self)
+        try req.session()["ResetPasswordUser"] = nil
+        
+        let newPassword = try BCrypt.hash(data.password)
+        resetPasswordUser.password = newPassword
+        
+        return resetPasswordUser
+            .save(on: req)
+            .transform(to: req.redirect(to: "/login"))
+    }
+    
+    func addProfilePictureHandler(_ req: Request) throws -> Future<View> {
+            return try req
+                .parameters
+                .next(User.self)
+                .flatMap { user in try req.view().render(
+                    "addProfilePicture",
+                    ["title": "Add Profile Picture",
+                     "username": user.name]) }
+    }
+    
+    func addProfilePicturePostHandler(_ req: Request) throws -> Future<Response> {
+        
+            return try flatMap(
+                to: Response.self,
+                req.parameters.next(User.self),
+                req.content.decode(ImageUploadData.self)) { user, imageData in
+                    
+                    let workPath = try req.make(DirectoryConfig.self).workDir
+                    let name = try "\(user.requireID())-\(UUID().uuidString).jpg"
+                    let path = workPath + self.imageFolder + name
+                    
+                    FileManager().createFile(
+                        atPath: path,
+                        contents: imageData.picture,
+                        attributes: nil)
+                    
+                    user.profilePicture = name
+                    
+                    let redirect = try req.redirect(to: "/users/\(user.requireID())")
+                    return user.save(on: req).transform(to: redirect)
+            }
+    }
+    
+    func getUsersProfilePictureHandler(_ req: Request) throws -> Future<Response> {
+        
+            return try req
+                .parameters
+                .next(User.self)
+                .flatMap(to: Response.self) { user in
+                    
+                    guard let filename = user.profilePicture else {
+                        throw Abort(.notFound)
+                    }
+                    
+                    let path = try req.make(DirectoryConfig.self).workDir + self.imageFolder + filename
+    
+                    return try req.streamFile(at: path)
+            }
+    }
+}
+
+struct ImageUploadData: Content {
+    var picture: Data
+}
+
+struct ResetPasswordData: Content {
+    let password: String
+    let confirmPassword: String
+}
+
+struct ResetPasswordContext: Encodable {
+    let title = "Reset Password"
+    let error: Bool?
+    init(error: Bool? = false) {
+        self.error = error
     }
 }
 
@@ -312,6 +514,7 @@ struct UserContext: Encodable {
     let title: String
     let user: User
     let acronyms: [Acronym]
+    let authenticatedUser: User?
 }
 
 struct AllUsersContext: Encodable {
@@ -377,6 +580,7 @@ struct RegisterData: Content {
     let username: String
     let password: String
     let confirmPassword: String
+    let emailAddress: String
 }
 
 extension RegisterData: Validatable, Reflectable {
@@ -385,6 +589,7 @@ extension RegisterData: Validatable, Reflectable {
         try validations.add(\.name, .ascii)
         try validations.add(\.username, .alphanumeric && .count(3...))
         try validations.add(\.password, .count(8...))
+        try validations.add(\.emailAddress, .email)
         validations.add("passwords match") { model in
             guard model.password == model.confirmPassword else {
                 throw BasicValidationError("passwords don’t match")
